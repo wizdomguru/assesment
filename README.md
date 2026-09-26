@@ -20,16 +20,30 @@ flowchart LR
 
 ## Docker Compose setup
 
-From PowerShell at the repository root:
+From the repository root, copy the example environment file and configure it:
 
-```powershell
-Copy-Item .env.example .env
-# Edit .env and set LLM_API_KEY and a calibrated RETRIEVAL_SCORE_THRESHOLD.
-docker compose up --build
+```bash
+cp .env.example .env
 ```
 
-The API is available at `http://127.0.0.1:8000` and its OpenAPI UI at `http://127.0.0.1:8000/docs`.
-The Streamlit workbench is available at `http://127.0.0.1:8501`.
+Set `LLM_API_KEY` and a calibrated `RETRIEVAL_SCORE_THRESHOLD` in `.env`. In this Codespace, also set the service URLs to the Docker host gateway:
+
+```dotenv
+QDRANT_URL=http://host.docker.internal:6333
+REDIS_URL=redis://host.docker.internal:6379/0
+```
+
+The example file uses the Compose service names (`qdrant` and `redis`), which are appropriate in standard Docker Compose networks. This Codespace uses the host gateway because its nested Docker network does not reliably allow container-to-container connections.
+
+Build the application images, then start the services:
+
+```bash
+docker compose build api ui
+docker compose up -d
+```
+
+The API is available at `http://localhost:8000` and its OpenAPI UI at `http://localhost:8000/docs`.
+The Streamlit workbench is available at `http://localhost:8501`.
 
 Smoke test:
 

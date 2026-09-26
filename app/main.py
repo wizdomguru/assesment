@@ -57,7 +57,12 @@ async def upload_document(
 def query(request: QueryRequest, services: ApplicationServices = Depends(get_services)) -> QueryResponse:
     try:
         llm_enabled = settings.llm_enabled if request.llm_enabled is None else request.llm_enabled
-        result, cached, chunks = services.query(request.question, llm_enabled=llm_enabled)
+        result, cached, chunks = services.query(
+            request.question,
+            llm_enabled=llm_enabled,
+            top_k=request.top_k,
+            retrieval_score_threshold=request.retrieval_score_threshold,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except Exception as exc:

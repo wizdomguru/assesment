@@ -7,6 +7,8 @@ from app.models.documents import RetrievedChunk
 class QueryRequest(BaseModel):
     question: str = Field(min_length=1, max_length=4000)
     llm_enabled: bool | None = None
+    top_k: int | None = Field(default=None, ge=1, le=100)
+    retrieval_score_threshold: float | None = Field(default=None, ge=0, le=1)
 
 
 class CitationResponse(BaseModel):

@@ -29,13 +29,15 @@ class AnswerCache:
     def _version_key(self) -> str:
         return f"rag:collection-version:{self.collection_name}"
 
-    def _cache_key(self, question: str, version: int) -> str:
+    def _cache_key(
+        self, question: str, version: int, retrieval_config: str | None = None
+    ) -> str:
         material = json.dumps(
             {
                 "collection": self.collection_name,
                 "version": version,
                 "question": question,
-                "retrieval": self.retrieval_config,
+                "retrieval": retrieval_config or self.retrieval_config,
                 "llm": self.llm_config,
             },
             sort_keys=True,
@@ -50,8 +52,12 @@ class AnswerCache:
     def bump_collection_version(self) -> int:
         return int(self.client.incr(self._version_key()))
 
-    def get(self, question: str) -> AnswerResult | None:
-        key = self._cache_key(question, self.collection_version())
+    def get(
+        self, question: str, retrieval_config: str | None = None
+    ) -> AnswerResult | None:
+        key = self._cache_key(
+            question, self.collection_version(), retrieval_config
+        )
         raw = self.client.get(key)
         if raw is None:
             return None
@@ -62,8 +68,15 @@ class AnswerCache:
             citations=[AnswerCitation(**citation) for citation in value["citations"]],
         )
 
-    def set(self, question: str, result: AnswerResult) -> None:
+    def set(
+        self,
+        question: str,
+        result: AnswerResult,
+        retrieval_config: str | None = None,
+    ) -> None:
         if not result.grounded:
             return
-        key = self._cache_key(question, self.collection_version())
+        key = self._cache_key(
+            question, self.collection_version(), retrieval_config
+        )
         self.client.setex(key, self.ttl_seconds, json.dumps(asdict(result)))

@@ -60,3 +60,14 @@ def test_collection_version_invalidates_old_key() -> None:
     assert cache.get("How?") == result
     assert cache.bump_collection_version() == 1
     assert cache.get("How?") is None
+
+
+def test_cache_separates_per_request_retrieval_settings() -> None:
+    cache = make_cache()
+    result = AnswerResult("Use OAuth.", [], True)
+    request_config = "top_k=3;threshold=0.8"
+
+    cache.set("How?", result, retrieval_config=request_config)
+
+    assert cache.get("How?", retrieval_config=request_config) == result
+    assert cache.get("How?", retrieval_config="top_k=5;threshold=0.7") is None

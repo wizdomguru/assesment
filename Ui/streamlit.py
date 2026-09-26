@@ -7,7 +7,7 @@ import httpx
 import streamlit as st
 
 
-DEFAULT_API_URL = "http://127.0.0.1:8000"
+DEFAULT_API_URL = "http://api:8000"
 REQUEST_TIMEOUT = httpx.Timeout(60.0, connect=5.0)
 
 
@@ -176,6 +176,7 @@ def main() -> None:
 	query_col, info_col = st.columns([1.6, 1], gap="large")
 	with query_col:
 		st.markdown("### Query the knowledge base")
+		customize_retrieval = st.toggle("Override retrieval defaults", value=False)
 		with st.form("query-form"):
 			question = st.text_area(
 				"Question",
@@ -183,6 +184,26 @@ def main() -> None:
 				height=130,
 				label_visibility="collapsed",
 			)
+			if customize_retrieval:
+				retrieval_controls = st.columns(2)
+				with retrieval_controls[0]:
+					top_k = st.number_input(
+						"Top K",
+					min_value=1,
+					max_value=100,
+					value=int(os.getenv("RETRIEVAL_TOP_K", "5")),
+					step=1,
+					help="Maximum number of chunks returned after reranking.",
+				)
+				with retrieval_controls[1]:
+					score_threshold = st.slider(
+						"Retrieval score threshold",
+					min_value=0.0,
+					max_value=1.0,
+					value=float(os.getenv("RETRIEVAL_SCORE_THRESHOLD", "0.7")),
+					step=0.01,
+					help="Minimum relevance score for retrieved chunks.",
+					)
 			controls = st.columns([1, 1, 2])
 			with controls[0]:
 				llm_enabled = st.toggle("Generate answer", value=True)
@@ -196,11 +217,18 @@ def main() -> None:
 				st.warning("Enter a question first.")
 			else:
 				try:
+					payload = {
+						"question": question.strip(),
+						"llm_enabled": llm_enabled,
+					}
+					if customize_retrieval:
+						payload["top_k"] = top_k
+						payload["retrieval_score_threshold"] = score_threshold
 					with st.spinner("Retrieving evidence..."):
 						response = api_request(
 							"POST",
 							"/query",
-							json={"question": question.strip(), "llm_enabled": llm_enabled},
+							json=payload,
 						)
 					if response.is_success:
 						st.session_state.last_query = response.json()

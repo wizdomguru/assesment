@@ -55,7 +55,7 @@ python -m uvicorn app.main:app --reload
 python -m streamlit run Ui/streamlit.py
 ```
 
-Set `RAG_API_URL` when the API is not running at the default `http://127.0.0.1:8000`.
+When running Streamlit directly on the host, set `RAG_API_URL=http://127.0.0.1:8000`. Docker Compose sets the container URL to `http://api:8000`.
 
 For local execution, set `QDRANT_URL=http://localhost:6333` and `REDIS_URL=redis://localhost:6379/0` in `.env`.
 

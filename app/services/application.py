@@ -70,14 +70,30 @@ class ApplicationServices:
         self.cache.bump_collection_version()
 
     def query(
-        self, question: str, llm_enabled: bool = True
+        self,
+        question: str,
+        llm_enabled: bool = True,
+        top_k: int | None = None,
+        retrieval_score_threshold: float | None = None,
     ) -> tuple[AnswerResult, bool, list[RetrievedChunk]]:
+        effective_top_k = self.retrieval_top_k if top_k is None else top_k
+        if effective_top_k <= 0:
+            raise ValueError("top_k must be greater than zero")
+        effective_threshold = (
+            self.validator.score_threshold
+            if retrieval_score_threshold is None
+            else retrieval_score_threshold
+        )
+        effective_validator = RetrievalValidator(effective_threshold)
+        retrieval_config = (
+            f"top_k={effective_top_k};threshold={effective_threshold:g}"
+        )
         vector = self.embeddings.embed(question)
-        search_top_k = self.retrieval_top_k * 2 if self.reranker else self.retrieval_top_k
+        search_top_k = effective_top_k * 2 if self.reranker else effective_top_k
         candidates = self.qdrant.search(
             vector,
             top_k=search_top_k,
-            score_threshold=self.validator.score_threshold,
+            score_threshold=effective_threshold,
         )
         logger.info(
             "RAG embedding ranking question=%r candidates=%s",
@@ -94,7 +110,7 @@ class ApplicationServices:
             ],
         )
         if self.reranker:
-            candidates = self.reranker.rerank(question, candidates, self.retrieval_top_k)
+            candidates = self.reranker.rerank(question, candidates, effective_top_k)
         logger.info(
             "RAG retrieval question=%r candidates=%s threshold=%.3f",
             question,
@@ -114,9 +130,9 @@ class ApplicationServices:
                 }
                 for candidate in candidates
             ],
-            self.validator.score_threshold,
+            effective_threshold,
         )
-        decision = self.validator.validate(candidates)
+        decision = effective_validator.validate(candidates)
         logger.info(
             "RAG validation sufficient=%s accepted_chunks=%d reason=%s",
             decision.sufficient,
@@ -124,7 +140,7 @@ class ApplicationServices:
             decision.reason,
         )
         if llm_enabled:
-            cached_result = self.cache.get(question)
+            cached_result = self.cache.get(question, retrieval_config=retrieval_config)
             if cached_result is not None:
                 return cached_result, True, list(candidates)
         cached = False
@@ -142,7 +158,7 @@ class ApplicationServices:
             None,
         )
         if llm_enabled:
-            self.cache.set(question, result)
+            self.cache.set(question, result, retrieval_config=retrieval_config)
         return result, cached, list(candidates)
 
 

@@ -1,4 +1,4 @@
-# Axentra RAG Service
+# RAG Service
 
 Production-style RAG microservice for ingesting PDF and Markdown documentation, indexing it in Qdrant, and answering grounded questions through FastAPI.
 
